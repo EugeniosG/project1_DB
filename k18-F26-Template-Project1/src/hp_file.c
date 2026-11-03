@@ -21,6 +21,13 @@
 HP_ErrorCode HP_CreateFile(const char *fileName) {
   /* TODO: δημιουργήστε το αρχείο, δεσμεύστε το πρώτο μπλοκ και αποθηκεύστε
      εκεί ένα στιγμιότυπο της HP_info */
+  int fd ;  //file description
+  BF_Block *block;
+  CALL_BF(BF_CreateFile(fileName))
+  CALL_BF(BF_OpenFile(fileName, &fd));
+  BF_Block_Init(&block);
+  CALL_BF(BF_AllocateBlock(fd, block));
+  CALL_BF(BF_CloseFile(fd));
   return HP_ERROR;
 }
 
