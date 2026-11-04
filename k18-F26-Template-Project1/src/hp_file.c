@@ -27,8 +27,24 @@ HP_ErrorCode HP_CreateFile(const char *fileName) {
   CALL_BF(BF_OpenFile(fileName, &fd));
   BF_Block_Init(&block);
   CALL_BF(BF_AllocateBlock(fd, block));
+
+  char *data = BF_Block_GetData(block);
+  memset(data, 0, BF_BLOCK_SIZE);
+
+  HP_info *info = (HP_info *) data;
+  memcpy(info->type, "HEAPFILE", sizeof(info->type));
+  info->last_block_ID = 0;
+  info->records_in_last_block = 0;
+  info->max_records_per_block = RECORDS_PER_BLOCK;
+  info->iter_block = 1;
+  info->iter_slot = 0;
+
+  BF_Block_SetDirty(block);
+  CALL_BF(BF_UnpinBlock(block));
+  BF_Block_Destroy(block); 
   CALL_BF(BF_CloseFile(fd));
-  return HP_ERROR;
+
+  return HP_OK;
 }
 
 HP_ErrorCode HP_OpenFile(const char *fileName, int *fileDesc) {
