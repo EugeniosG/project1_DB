@@ -18,6 +18,9 @@
     }                         \
   }
 
+  static BF_Block *meta_block[BF_MAX_OPEN_FILES];
+  static HP_info *meta_info[BF_MAX_OPEN_FILES];
+
 HP_ErrorCode HP_CreateFile(const char *fileName) {
   /* TODO: δημιουργήστε το αρχείο, δεσμεύστε το πρώτο μπλοκ και αποθηκεύστε
      εκεί ένα στιγμιότυπο της HP_info */
@@ -48,9 +51,40 @@ HP_ErrorCode HP_CreateFile(const char *fileName) {
 }
 
 HP_ErrorCode HP_OpenFile(const char *fileName, int *fileDesc) {
+
   /* TODO: ανοίξτε το αρχείο, διαβάστε τα μεταδεδομένα από το πρώτο μπλοκ και
-     ελέγξτε ότι πρόκειται όντως για αρχείο σωρού */
-  return HP_ERROR;
+    ελέγξτε ότι πρόκειται όντως για αρχείο σωρού */
+  int fd;
+  BF_Block *block;
+
+  BF_CALL(BF_OpenFile(fileName, &fd));
+  if(fd < 0 || fd >= BF_MAX_OPEN_FILES){
+    BF_CloseFile(fileName);
+    return HP_ERROR;
+  }
+  BF_Block_Init(&block);
+  
+  if(BF_GetBlock(fd, 0, block) != HP_OK){
+    BF_Block_Destroy(block);
+    CALL_BF(BF_CloseFile(fd));
+    return HP_ERROR;
+  }
+
+  HP_info *info = (HP_info *) BF_Block_GetData(block);
+  if (memcmp(info->type, "HEAPFILE", sizeof(info->type)) != 0){
+    BF_UnpinBlock(block);
+    BF_Block_Destroy(block);
+    CALL_BF(BF_CloseFile(fd));
+    return HP_ERROR;
+  }
+
+  info->iter_block = 1;
+  info->iter_slot = 0;
+
+  meta_block[fd] = block;
+  meta_info[fd] = info; 
+  fileDesc = fd;
+  return HP_OK;
 }
 
 HP_ErrorCode HP_CloseFile(int fileDesc) {
