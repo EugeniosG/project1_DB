@@ -1,6 +1,0 @@
-{
-    "editor.inlineSuggest.edits.renderSideBySide": "never",
-    "editor.inlineSuggest.edits.allowCodeShifting": "never",
-    "editor.inlineSuggest.fontFamily": "default",
-    "editor.snippetSuggestions": "none"
-}
