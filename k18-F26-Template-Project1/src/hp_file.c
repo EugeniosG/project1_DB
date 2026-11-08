@@ -91,7 +91,17 @@ HP_ErrorCode HP_OpenFile(const char *fileName, int *fileDesc) {
 
 HP_ErrorCode HP_CloseFile(int fileDesc) {
   /* TODO: γράψτε στον δίσκο ό,τι εκκρεμεί και κλείστε το αρχείο */
+if (fileDesc < 0 || fileDesc >= BF_MAX_OPEN_FILES)  //εκτός ορίων πίνακα
   return HP_ERROR;
+if (meta_block[fileDesc] == NULL)                   //δεν είναι ανοιχτό
+  return HP_ERROR;
+
+CALL_BF(BF_UnpinBlock(meta_block[fileDesc]));       //(BF_Block *) unpin του block 0
+BF_Block_Destroy(&meta_block[fileDesc]);            //meta_block[fileDesc] = NULL
+meta_info[fileDesc] = NULL;                         // δεν ισχύει ο δείκτης στα δεδομένα πλέον
+
+CALL_BF(BF_CloseFile(fileDesc));
+  return HP_OK;
 }
 
 HP_ErrorCode HP_InsertEntry(int fileDesc, Record record) {
