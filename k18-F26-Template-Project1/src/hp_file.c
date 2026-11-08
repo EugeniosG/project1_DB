@@ -109,6 +109,7 @@ HP_ErrorCode HP_InsertEntry(int fileDesc, Record record) {
      εγγραφή με την blockSetRecord. Μην ξεχάσετε να ενημερώσετε τα
      μεταδεδομένα του αρχείου. */
      //διαφάνειες σελ 18-20
+
 if (fileDesc < 0 || fileDesc >= BF_MAX_OPEN_FILES)  //εκτός ορίων πίνακα
   return HP_ERROR;
 if (meta_block[fileDesc] == NULL)                   //δεν είναι ανοιχτό
@@ -139,7 +140,51 @@ BF_Block_Destroy(&block);
 HP_ErrorCode HP_PrintAllEntries(int fileDesc, char *fieldName, void *value) {
   /* TODO: διατρέξτε τα μπλοκ του αρχείου και εκτυπώστε τις εγγραφές που στο
      πεδίο fieldName έχουν τιμή value. Αν value == NULL, εκτυπώστε τις όλες. */
-  return HP_ERROR;
+
+  if (fileDesc < 0 || fileDesc >= BF_MAX_OPEN_FILES)  // εκτός ορίων πίνακα
+    return HP_ERROR;
+  if (meta_block[fileDesc] == NULL)                   // δεν είναι ανοιχτό
+    return HP_ERROR;
+
+  HP_info *info = meta_info[fileDesc];
+  BF_Block *block;
+  BF_Block_Init(&block);
+
+  for (int b = 1; b <= info->last_block_ID; b++) {                   // όλα τα block
+    CALL_BF(BF_GetBlock(fileDesc, b, block));
+
+    int n;                                            // πόσες εγγραφές έχει το block
+    if (b == info->last_block_ID)
+      n = info->records_in_last_block;     //το τελευταίο
+    else
+      n = info->max_records_per_block;                     // όλα τα άλλα είναι γεμάτα 
+
+    for (int slot = 0; slot < n; slot++) {
+      Record rec;
+      blockGetRecord(block, slot, &rec);
+
+      int match = 0;        //έλεγχος αν ταιριάζει η εγγραφή
+      if (value == NULL)
+        match = 1;
+      else if (strcmp(fieldName, "id") == 0)
+        match = (rec.id == *(int *)value);
+      else if (strcmp(fieldName, "postcode") == 0)
+        match = (rec.postcode == *(int *)value);
+      else if (strcmp(fieldName, "firstname") == 0)
+        match = (strcmp(rec.firstname, (char *)value) == 0);
+      else if (strcmp(fieldName, "lastname") == 0)
+        match = (strcmp(rec.lastname, (char *)value) == 0);
+      else if (strcmp(fieldName, "city") == 0)
+        match = (strcmp(rec.city, (char *)value) == 0);
+
+      if (match)
+        printRecord(rec);
+    }
+    CALL_BF(BF_UnpinBlock(block));
+  }
+
+  BF_Block_Destroy(&block);
+  return HP_OK;
 }
 
 HP_ErrorCode HP_GetEntry(int fileDesc, int blockid, int position,
