@@ -35,7 +35,8 @@ HP_ErrorCode HP_CreateFile(const char *fileName) {
   memset(data, 0, BF_BLOCK_SIZE);
 
   HP_info *info = (HP_info *) data;
-  memcpy(info->type, "HEAPFILE", sizeof(info->type));
+  //strlen δίνει 8, και το + 1 προσθέτει το \0 ενω sizeof(info->type) είναι 10
+  memcpy(info->type, "HEAPFILE", strlen("HEAPFILE") + 1);
   info->last_block_ID = 0;
   info->records_in_last_block = 0;
   info->max_records_per_block = RECORDS_PER_BLOCK;
@@ -44,7 +45,7 @@ HP_ErrorCode HP_CreateFile(const char *fileName) {
 
   BF_Block_SetDirty(block);
   CALL_BF(BF_UnpinBlock(block));
-  BF_Block_Destroy(block); 
+  BF_Block_Destroy(&block); 
   CALL_BF(BF_CloseFile(fd));
 
   return HP_OK;
@@ -57,23 +58,24 @@ HP_ErrorCode HP_OpenFile(const char *fileName, int *fileDesc) {
   int fd;
   BF_Block *block;
 
-  BF_CALL(BF_OpenFile(fileName, &fd));
+  CALL_BF(BF_OpenFile(fileName, &fd));
   if(fd < 0 || fd >= BF_MAX_OPEN_FILES){
-    BF_CloseFile(fileName);
+    BF_CloseFile(fd);
     return HP_ERROR;
   }
   BF_Block_Init(&block);
   
-  if(BF_GetBlock(fd, 0, block) != HP_OK){
-    BF_Block_Destroy(block);
+  if(BF_GetBlock(fd, 0, block) != BF_OK){
+    BF_Block_Destroy(&block);
     CALL_BF(BF_CloseFile(fd));
     return HP_ERROR;
   }
 
   HP_info *info = (HP_info *) BF_Block_GetData(block);
-  if (memcmp(info->type, "HEAPFILE", sizeof(info->type)) != 0){
+  //strlen δίνει 8, και το + 1 προσθέτει το \0 ενω sizeof(info->type) είναι 10
+  if (memcmp(info->type, "HEAPFILE", strlen("HEAPFILE") + 1) != 0){
     BF_UnpinBlock(block);
-    BF_Block_Destroy(block);
+    BF_Block_Destroy(&block);
     CALL_BF(BF_CloseFile(fd));
     return HP_ERROR;
   }
@@ -83,7 +85,7 @@ HP_ErrorCode HP_OpenFile(const char *fileName, int *fileDesc) {
 
   meta_block[fd] = block;
   meta_info[fd] = info; 
-  fileDesc = fd;
+  *fileDesc = fd;
   return HP_OK;
 }
 
