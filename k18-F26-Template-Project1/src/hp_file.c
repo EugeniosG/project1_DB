@@ -108,7 +108,32 @@ HP_ErrorCode HP_InsertEntry(int fileDesc, Record record) {
   /* TODO: βρείτε ή δεσμεύστε το κατάλληλο μπλοκ και αντιγράψτε εκεί την
      εγγραφή με την blockSetRecord. Μην ξεχάσετε να ενημερώσετε τα
      μεταδεδομένα του αρχείου. */
+     //διαφάνειες σελ 18-20
+if (fileDesc < 0 || fileDesc >= BF_MAX_OPEN_FILES)  //εκτός ορίων πίνακα
   return HP_ERROR;
+if (meta_block[fileDesc] == NULL)                   //δεν είναι ανοιχτό
+  return HP_ERROR;
+
+HP_info *info = meta_info[fileDesc];
+BF_Block *block;
+BF_Block_Init(&block);
+
+if (info->last_block_ID == 0 ||                    // δεν υπάρχει block 
+    info->records_in_last_block == 6) {            // είναι γεμάτο
+  CALL_BF(BF_AllocateBlock(fileDesc, block));     // νέο block στο τέλος
+  info->last_block_ID++;
+  info->records_in_last_block = 0;
+} else {
+  CALL_BF(BF_GetBlock(fileDesc, info->last_block_ID, block));
+}
+
+blockSetRecord(block, info->records_in_last_block, record); //record στην κενή θέση
+info->records_in_last_block++;                              // +1 record
+BF_Block_SetDirty(meta_block[fileDesc]);
+
+CALL_BF(BF_UnpinBlock(block));
+BF_Block_Destroy(&block);
+  return HP_OK;
 }
 
 HP_ErrorCode HP_PrintAllEntries(int fileDesc, char *fieldName, void *value) {
