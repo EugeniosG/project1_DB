@@ -17,12 +17,12 @@
       return HP_ERROR;        \
     }                         \
   }
-
-  static BF_Block *meta_block[BF_MAX_OPEN_FILES];
-  static HP_info *meta_info[BF_MAX_OPEN_FILES];
+/* κατάσταση ανά ανοιχτό αρχείο, με δείκτη το fd (χωρίς malloc) */
+static BF_Block *meta_block[BF_MAX_OPEN_FILES];     // pinned block 0
+static HP_info *meta_info[BF_MAX_OPEN_FILES];       // HP_info μέσα στο block 0
 
 HP_ErrorCode HP_CreateFile(const char *fileName) {
-  /* TODO: δημιουργήστε το αρχείο, δεσμεύστε το πρώτο μπλοκ και αποθηκεύστε
+  /* DONE: δημιουργήστε το αρχείο, δεσμεύστε το πρώτο μπλοκ και αποθηκεύστε
      εκεί ένα στιγμιότυπο της HP_info */
   int fd ;  //file description
   BF_Block *block;
@@ -34,7 +34,7 @@ HP_ErrorCode HP_CreateFile(const char *fileName) {
   char *data = BF_Block_GetData(block);
   memset(data, 0, BF_BLOCK_SIZE);
 
-  HP_info *info = (HP_info *) data;
+  HP_info *info = (HP_info *) data;     // το HP_info στην αρχή του block 0
   //strlen δίνει 8, και το + 1 προσθέτει το \0 ενω sizeof(info->type) είναι 10
   memcpy(info->type, "HEAPFILE", strlen("HEAPFILE") + 1);
   info->last_block_ID = 0;
@@ -53,7 +53,7 @@ HP_ErrorCode HP_CreateFile(const char *fileName) {
 
 HP_ErrorCode HP_OpenFile(const char *fileName, int *fileDesc) {
 
-  /* TODO: ανοίξτε το αρχείο, διαβάστε τα μεταδεδομένα από το πρώτο μπλοκ και
+  /* DONE: ανοίξτε το αρχείο, διαβάστε τα μεταδεδομένα από το πρώτο μπλοκ και
     ελέγξτε ότι πρόκειται όντως για αρχείο σωρού */
   //ξεκινάει από (1, 0), πρώτη εγγραφή
   int fd;
@@ -81,17 +81,17 @@ HP_ErrorCode HP_OpenFile(const char *fileName, int *fileDesc) {
     return HP_ERROR;
   }
 
-  info->iter_block = 1;
+  info->iter_block = 1;         // iterator από την αρχή (1, 0)
   info->iter_slot = 0;
 
-  meta_block[fd] = block;
+  meta_block[fd] = block;     // μένει pinned μέχρι HP_CloseFile
   meta_info[fd] = info; 
   *fileDesc = fd;
   return HP_OK;
 }
 
 HP_ErrorCode HP_CloseFile(int fileDesc) {
-  /* TODO: γράψτε στον δίσκο ό,τι εκκρεμεί και κλείστε το αρχείο */
+  /* DONE: γράψτε στον δίσκο ό,τι εκκρεμεί και κλείστε το αρχείο */
 if (fileDesc < 0 || fileDesc >= BF_MAX_OPEN_FILES)  //εκτός ορίων πίνακα
   return HP_ERROR;
 if (meta_block[fileDesc] == NULL)                   //δεν είναι ανοιχτό
@@ -106,7 +106,7 @@ CALL_BF(BF_CloseFile(fileDesc));
 }
 
 HP_ErrorCode HP_InsertEntry(int fileDesc, Record record) {
-  /* TODO: βρείτε ή δεσμεύστε το κατάλληλο μπλοκ και αντιγράψτε εκεί την
+  /* DONE: βρείτε ή δεσμεύστε το κατάλληλο μπλοκ και αντιγράψτε εκεί την
      εγγραφή με την blockSetRecord. Μην ξεχάσετε να ενημερώσετε τα
      μεταδεδομένα του αρχείου. */
      //διαφάνειες σελ 18-20
@@ -121,7 +121,7 @@ BF_Block *block;
 BF_Block_Init(&block);
 
 if (info->last_block_ID == 0 ||                    // δεν υπάρχει block 
-    info->records_in_last_block == 6) {            // είναι γεμάτο
+    info->records_in_last_block == info->max_records_per_block) {     // είναι γεμάτο
   CALL_BF(BF_AllocateBlock(fileDesc, block));     // νέο block στο τέλος
   info->last_block_ID++;
   info->records_in_last_block = 0;
@@ -131,7 +131,7 @@ if (info->last_block_ID == 0 ||                    // δεν υπάρχει bloc
 
 blockSetRecord(block, info->records_in_last_block, record); //record στην κενή θέση
 info->records_in_last_block++;                              // +1 record
-BF_Block_SetDirty(meta_block[fileDesc]);
+BF_Block_SetDirty(meta_block[fileDesc]);              //metadata (count, last) → dirty
 
 CALL_BF(BF_UnpinBlock(block));
 BF_Block_Destroy(&block);
@@ -139,7 +139,7 @@ BF_Block_Destroy(&block);
 }
 
 HP_ErrorCode HP_PrintAllEntries(int fileDesc, char *fieldName, void *value) {
-  /* TODO: διατρέξτε τα μπλοκ του αρχείου και εκτυπώστε τις εγγραφές που στο
+  /* DONE: διατρέξτε τα μπλοκ του αρχείου και εκτυπώστε τις εγγραφές που στο
      πεδίο fieldName έχουν τιμή value. Αν value == NULL, εκτυπώστε τις όλες. */
 
   if (fileDesc < 0 || fileDesc >= BF_MAX_OPEN_FILES)  // εκτός ορίων πίνακα
@@ -190,7 +190,7 @@ HP_ErrorCode HP_PrintAllEntries(int fileDesc, char *fieldName, void *value) {
 
 HP_ErrorCode HP_GetEntry(int fileDesc, int blockid, int position,
                          Record *record) {
-  /* TODO: φέρτε το μπλοκ blockid και διαβάστε την εγγραφή της θέσης position
+  /* DONE: φέρτε το μπλοκ blockid και διαβάστε την εγγραφή της θέσης position
      με την blockGetRecord */
   if (fileDesc < 0 || fileDesc >= BF_MAX_OPEN_FILES)    // εκτός ορίων
     return HP_ERROR;
@@ -221,7 +221,7 @@ HP_ErrorCode HP_GetEntry(int fileDesc, int blockid, int position,
 }
 
 HP_ErrorCode HP_GetNextRecordWithID(int fileDesc, Record *record, void *value) {
-  /* TODO: υλοποιήστε τον iterator. Η κατάσταση του (πού σταμάτησε η
+  /* DONE: υλοποιήστε τον iterator. Η κατάσταση του (πού σταμάτησε η
      προηγούμενη κλήση) πρέπει να επιβιώνει ανάμεσα στις κλήσεις. */
   if (fileDesc < 0 || fileDesc >= BF_MAX_OPEN_FILES)   // εκτός ορίων πίνακα
     return HP_ERROR;
@@ -234,7 +234,7 @@ HP_ErrorCode HP_GetNextRecordWithID(int fileDesc, Record *record, void *value) {
   BF_Block *block;
   BF_Block_Init(&block);
 
-  while (info->iter_block <= info->last_block_ID) {   // από το last block που σταματησε
+  while (info->iter_block <= info->last_block_ID) {   // από το block που σταματησε
     CALL_BF(BF_GetBlock(fileDesc, info->iter_block, block));
 
     int n;                                            // πόσες εγγραφές στο block
@@ -246,11 +246,10 @@ HP_ErrorCode HP_GetNextRecordWithID(int fileDesc, Record *record, void *value) {
     while (info->iter_slot < n) {                     // από τη θέση που σταμάτησε
       Record rec;
       blockGetRecord(block, info->iter_slot, &rec);
-      info->iter_slot++;
-
-      if (rec.id == *(int *)value) {                                     // ίδιο id;
+      info->iter_slot++;                  //ο iterator προχωρά στο επόμενο slot
+      if (rec.id == *(int *)value) {            // σύγκριση id με την τιμή που δείχνει το value(: void* → int*)
         *record = rec;
-        CALL_BF(BF_UnpinBlock(block));
+        CALL_BF(BF_UnpinBlock(block));        //found: unnpin first
         BF_Block_Destroy(&block);
         return HP_OK;
       }
