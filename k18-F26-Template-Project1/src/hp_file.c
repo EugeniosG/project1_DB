@@ -155,23 +155,23 @@ HP_ErrorCode HP_PrintAllEntries(int fileDesc, char *fieldName, void *value) {
 
     int n;                                            // πόσες εγγραφές έχει το block
     if (b == info->last_block_ID)
-      n = info->records_in_last_block;     //το τελευταίο
+      n = info->records_in_last_block;               //το τελευταίο
     else
-      n = info->max_records_per_block;                     // όλα τα άλλα είναι γεμάτα 
+      n = info->max_records_per_block;               //τα άλλα είναι γεμάτα 
 
-    for (int slot = 0; slot < n; slot++) {
+    for (int slot = 0; slot < n; slot++) {        //scan ολα τα slots
       Record rec;
       blockGetRecord(block, slot, &rec);
 
-      int match = 0;        //έλεγχος αν ταιριάζει η εγγραφή
+      int match = 0;        //έλεγχος αν ταιριάζει η εγγραφή, 1 = match, 0 = no match
       if (value == NULL)
-        match = 1;
+        match = 1;        
       else if (strcmp(fieldName, "id") == 0)
-        match = (rec.id == *(int *)value);
+        match = (rec.id == *(int *)value);            //int values:
       else if (strcmp(fieldName, "postcode") == 0)
         match = (rec.postcode == *(int *)value);
       else if (strcmp(fieldName, "firstname") == 0)
-        match = (strcmp(rec.firstname, (char *)value) == 0);
+        match = (strcmp(rec.firstname, (char *)value) == 0);    //char  values:
       else if (strcmp(fieldName, "lastname") == 0)
         match = (strcmp(rec.lastname, (char *)value) == 0);
       else if (strcmp(fieldName, "city") == 0)
@@ -191,7 +191,32 @@ HP_ErrorCode HP_GetEntry(int fileDesc, int blockid, int position,
                          Record *record) {
   /* TODO: φέρτε το μπλοκ blockid και διαβάστε την εγγραφή της θέσης position
      με την blockGetRecord */
-  return HP_ERROR;
+  if (fileDesc < 0 || fileDesc >= BF_MAX_OPEN_FILES)    // εκτός ορίων
+    return HP_ERROR;
+  if (meta_block[fileDesc] == NULL)                 // δεν είναι ανοιχτό
+    return HP_ERROR;
+
+  HP_info *info = meta_info[fileDesc];
+
+  if (blockid < 1 || blockid > info->last_block_ID)       // δεν υπάρχει τέτοιο block
+    return HP_ERROR;
+
+  int n;                                              //πόσες εγγραφές έχει το block
+  if (blockid == info->last_block_ID)
+    n = info->records_in_last_block;          // τελευταίο
+  else
+    n = info->max_records_per_block;          //τα άλλα είναι γεμάτα
+
+  if (position < 0 || position >= n)       // κενo slot
+    return HP_ERROR;
+
+  BF_Block *block;
+  BF_Block_Init(&block);
+  CALL_BF(BF_GetBlock(fileDesc, blockid, block));     // φέρε το block (pin)
+  blockGetRecord(block, position, record);            // αντιγραφή εγγραφής στο *record
+  CALL_BF(BF_UnpinBlock(block));                      // unpin
+  BF_Block_Destroy(&block);
+  return HP_OK;
 }
 
 HP_ErrorCode HP_GetNextRecordWithID(int fileDesc, Record *record, void *value) {
