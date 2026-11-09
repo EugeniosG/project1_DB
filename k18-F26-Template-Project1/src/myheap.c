@@ -29,6 +29,33 @@
  */
 
 int main(int argc, char *argv[]) {
-  /* ... */
-  return EXIT_SUCCESS;
+  if (argc != 3)      //argv[0] ./bin/myheap	argv[1]	-i  argv[2]	inputs/records.txt
+    return EXIT_FAILURE;
+  int fd;                          // file descriptor του heap file (από HP_OpenFile)
+  Record r;
+  FILE *in = fopen(argv[2], "r");  //ανοίγει το records.txt για read
+  BF_Init(LRU);                    // ξεκινάει τη BF με αντικατάσταση LRU
+
+  if (HP_CreateFile(DB_FILE) != HP_OK)   // τρέχει πρώτα make clean 
+    return EXIT_FAILURE;
+  HP_OpenFile(DB_FILE, &fd);       //open heap file κ πάρε fd
+
+  while (fscanf(in, "%d %24s %19s %d %19s",     //id firstname lastname postcode city
+                &r.id, r.firstname, r.lastname, &r.postcode, r.city) == 5) //οσο βγάζει 5 υπάρχει εγγραφή
+    HP_InsertEntry(fd, r);            // imsert στο heap file
+  fclose(in);                 //κλείσιμο αρχείου
+
+  HP_PrintAllEntries(fd, NULL, NULL);                 // όλες οι 15
+  HP_PrintAllEntries(fd, "city", "Athina");           // μονο city=Athina
+
+  HP_GetEntry(fd, 1, 0, &r);                          // block 1, θέση 0
+  printRecord(r);
+
+  int id = 151;
+  while (HP_GetNextRecordWithID(fd, &r, &id) == HP_OK)  // iterator μέχρι HP_EOF
+    printRecord(r);
+
+  HP_CloseFile(fd);               // unpin block 0
+  BF_Close();                     //κλείνει την BF γραφει στο δίσκο οιτ εκρεμμεί
+  return EXIT_SUCCESS;            
 }
