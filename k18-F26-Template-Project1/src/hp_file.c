@@ -55,6 +55,7 @@ HP_ErrorCode HP_OpenFile(const char *fileName, int *fileDesc) {
 
   /* TODO: ανοίξτε το αρχείο, διαβάστε τα μεταδεδομένα από το πρώτο μπλοκ και
     ελέγξτε ότι πρόκειται όντως για αρχείο σωρού */
+  //ξεκινάει από (1, 0), πρώτη εγγραφή
   int fd;
   BF_Block *block;
 
@@ -201,7 +202,7 @@ HP_ErrorCode HP_GetEntry(int fileDesc, int blockid, int position,
   if (blockid < 1 || blockid > info->last_block_ID)       // δεν υπάρχει τέτοιο block
     return HP_ERROR;
 
-  int n;                                              //πόσες εγγραφές έχει το block
+  int n;                                              //πόσες εγγραφές στο block
   if (blockid == info->last_block_ID)
     n = info->records_in_last_block;          // τελευταίο
   else
@@ -222,5 +223,46 @@ HP_ErrorCode HP_GetEntry(int fileDesc, int blockid, int position,
 HP_ErrorCode HP_GetNextRecordWithID(int fileDesc, Record *record, void *value) {
   /* TODO: υλοποιήστε τον iterator. Η κατάσταση του (πού σταμάτησε η
      προηγούμενη κλήση) πρέπει να επιβιώνει ανάμεσα στις κλήσεις. */
-  return HP_ERROR;
+  if (fileDesc < 0 || fileDesc >= BF_MAX_OPEN_FILES)   // εκτός ορίων πίνακα
+    return HP_ERROR;
+  if (meta_block[fileDesc] == NULL)                   // δεν είναι ανοιχτό
+    return HP_ERROR;
+  if (value == NULL)                                  // id για αναζήτηση
+    return HP_ERROR;
+
+  HP_info *info = meta_info[fileDesc];
+  BF_Block *block;
+  BF_Block_Init(&block);
+
+  while (info->iter_block <= info->last_block_ID) {   // από το last block που σταματησε
+    CALL_BF(BF_GetBlock(fileDesc, info->iter_block, block));
+
+    int n;                                            // πόσες εγγραφές στο block
+    if (info->iter_block == info->last_block_ID)
+      n = info->records_in_last_block;          // τελευταίο
+    else
+      n = info->max_records_per_block;          //τα άλλα είναι γεμάτα
+
+    while (info->iter_slot < n) {                     // από τη θέση που σταμάτησε
+      Record rec;
+      blockGetRecord(block, info->iter_slot, &rec);
+      info->iter_slot++;
+
+      if (rec.id == *(int *)value) {                                     // ίδιο id;
+        *record = rec;
+        CALL_BF(BF_UnpinBlock(block));
+        BF_Block_Destroy(&block);
+        return HP_OK;
+      }
+    }
+
+    CALL_BF(BF_UnpinBlock(block));
+    info->iter_block++;                               // επόμενο block
+    info->iter_slot = 0;                              // από την αρχή
+  }
+
+  info->iter_block = 1;                            //τέλος iterator
+  info->iter_slot  = 0;                            // από την αρχή
+  BF_Block_Destroy(&block);
+  return HP_EOF;
 }
