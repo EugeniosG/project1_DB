@@ -62,8 +62,9 @@ int main(int argc, char *argv[]) {
     printf("HP_ERROR. As we expected\n");
   }
 
+  int fd2;
   printf("\nHP_OpenFile σε αρχείο που δεν είναι heap\n");
-  if (HP_OpenFile("DBs/bf.db", &fd) == HP_ERROR){
+  if (HP_OpenFile("DBs/bf.db", &fd2) == HP_ERROR){
     printf("HP_ERROR. As we expected\n");
   }
 
