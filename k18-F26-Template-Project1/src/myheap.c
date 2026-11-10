@@ -33,7 +33,11 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   int fd;                          // file descriptor του heap file (από HP_OpenFile)
   Record r;
+  remove(DB_FILE);
   FILE *in = fopen(argv[2], "r");  //ανοίγει το records.txt για read
+  if(in == NULL){
+    return EXIT_FAILURE;
+  }
   BF_Init(LRU);                    // ξεκινάει τη BF με αντικατάσταση LRU
 
   if (HP_CreateFile(DB_FILE) != HP_OK)   // τρέχει πρώτα make clean 
@@ -45,13 +49,16 @@ int main(int argc, char *argv[]) {
     HP_InsertEntry(fd, r);            // imsert στο heap file
   fclose(in);                 //κλείσιμο αρχείου
 
+  printf("\nΌλες οι εγγραφές:\n");
   HP_PrintAllEntries(fd, NULL, NULL);                 // όλες οι 15
   HP_PrintAllEntries(fd, "city", "Athina");           // μονο city=Athina
 
+  printf("\nHP_GetEntry (block 1, θέση 0):\n");
   HP_GetEntry(fd, 1, 0, &r);                          // block 1, θέση 0
   printRecord(r);
 
   int id = 151;
+  printf("\nHP_GetNextRecordWithID (id = 151):\n");
   while (HP_GetNextRecordWithID(fd, &r, &id) == HP_OK)  // iterator μέχρι HP_EOF
     printRecord(r);
 
