@@ -56,12 +56,23 @@ int main(int argc, char *argv[]) {
   printf("\nHP_GetEntry (block 1, θέση 0):\n");
   HP_GetEntry(fd, 1, 0, &r);                          // block 1, θέση 0
   printRecord(r);
+  
+  printf("\nHP_GetEntry με θέση πού δεν υπάρχει\n");
+  if (HP_GetEntry(fd, 1, 1000, &r) == HP_ERROR){
+    printf("HP_ERROR. As we expected\n");
+  }
+
+  printf("\nHP_OpenFile σε αρχείο που δεν είναι heap\n");
+  if (HP_OpenFile("DBs/bf.db", &fd) == HP_ERROR){
+    printf("HP_ERROR. As we expected\n");
+  }
 
   int id = 151;
   printf("\nHP_GetNextRecordWithID (id = 151):\n");
   while (HP_GetNextRecordWithID(fd, &r, &id) == HP_OK)  // iterator μέχρι HP_EOF
     printRecord(r);
 
+  
   HP_CloseFile(fd);               // unpin block 0
   BF_Close();                     //κλείνει την BF γραφει στο δίσκο οιτ εκρεμμεί
   return EXIT_SUCCESS;            
