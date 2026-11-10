@@ -29,7 +29,7 @@
  */
 
 int main(int argc, char *argv[]) {
-  if (argc != 3)      //argv[0] ./bin/myheap	argv[1]	-i  argv[2]	inputs/records.txt
+  if (argc != 3 || strcmp(argv[1], "-i") != 0)      //argv[0] ./bin/myheap	argv[1]	-i  argv[2]	inputs/records.txt
     return EXIT_FAILURE;
   int fd;                          // file descriptor του heap file (από HP_OpenFile)
   Record r;
@@ -46,11 +46,13 @@ int main(int argc, char *argv[]) {
 
   while (fscanf(in, "%d %24s %19s %d %19s",     //id firstname lastname postcode city
                 &r.id, r.firstname, r.lastname, &r.postcode, r.city) == 5) //οσο βγάζει 5 υπάρχει εγγραφή
-    HP_InsertEntry(fd, r);            // imsert στο heap file
+    HP_InsertEntry(fd, r);            // insert στο heap file
   fclose(in);                 //κλείσιμο αρχείου
 
   printf("\nΌλες οι εγγραφές:\n");
   HP_PrintAllEntries(fd, NULL, NULL);                 // όλες οι 15
+  
+  printf("\nΟι εγγραφές με city = Athina:\n");
   HP_PrintAllEntries(fd, "city", "Athina");           // μονο city=Athina
 
   printf("\nHP_GetEntry (block 1, θέση 0):\n");
