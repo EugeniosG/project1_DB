@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
   printRecord(r);
   
   printf("\nHP_GetEntry με θέση πού δεν υπάρχει\n");
-  if (HP_GetEntry(fd, 1, 1000, &r) == HP_ERROR){
+  if (HP_GetEntry(fd, 1, 1000, &r) == HP_ERROR){    // η θέση 1000 δεν υπάρχει
     printf("HP_ERROR. As we expected\n");
   }
 
@@ -72,7 +72,6 @@ int main(int argc, char *argv[]) {
   while (HP_GetNextRecordWithID(fd, &r, &id) == HP_OK)  // iterator μέχρι HP_EOF
     printRecord(r);
 
-  
   HP_CloseFile(fd);               // unpin block 0
   BF_Close();                     //κλείνει την BF γραφει στο δίσκο οιτ εκρεμμεί
   return EXIT_SUCCESS;            
